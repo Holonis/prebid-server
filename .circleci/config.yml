@@ -75,6 +75,12 @@ jobs:
 
       - setup_remote_docker
 
+      - run:
+          name: Get deploy version
+          command: |
+            echo VERSION=1.0 > version
+            cat version >> $BASH_ENV
+
       - deploy:
           name: Deploying to int
           command: |
