@@ -24,4 +24,85 @@ jobs:
       # specify any bash command here prefixed with `run: `
       # - run: go get -v -t -d ./...
       # - run: go test -v ./...
-      - run: ls -l ; ./validate.sh
+      - run: echo "no tests"
+
+  publish:
+    docker:
+      - image: 204430437688.dkr.ecr.us-west-2.amazonaws.com/holonis/holonis-docker:1.2.0
+        aws_auth:
+          aws_access_key_id: $AWS_ACCESS_KEY_ID_HOL_DEV_ORG
+          aws_secret_access_key: $AWS_SECRET_ACCESS_KEY_HOL_DEV_ORG
+
+    working_directory: ~/repo
+
+    steps:
+      - checkout
+
+      - setup_remote_docker
+
+      - run:
+          name: Get deploy version
+          command: |
+            echo VERSION=1.0 > version
+            cat version >> $BASH_ENV
+
+      - publish:
+          name: Pushing version ${VERSION} to AWS ECR
+          command: |
+            source version
+            echo $VERSION
+            git clone git@bitbucket.org:holonisproduct/holonis-common.git ~/holonis-common
+            cd ~/holonis-common/ && \
+            git checkout DO-163-MIGRATE && \
+            echo $ANSIBLE_VAULT_PASSWORD > ~/ansible_vault_password
+            cd ansible && \
+            ansible-playbook playbooks/deploy/publish.yml \
+            -i environments/int \
+            --vault-id=~/ansible_vault_password \
+            --extra-vars="ecs_state=up service_workspace=~/repo ServiceName=prebid deploy_version=$VERSION" -v
+
+  int-deploy:
+    docker:
+      - image: 204430437688.dkr.ecr.us-west-2.amazonaws.com/holonis/holonis-docker:1.2.0
+        aws_auth:
+          aws_access_key_id: $AWS_ACCESS_KEY_ID_HOL_DEV_ORG
+          aws_secret_access_key: $AWS_SECRET_ACCESS_KEY_HOL_DEV_ORG
+
+    working_directory: ~/repo
+
+    steps:
+      - checkout
+
+      - setup_remote_docker
+
+      - deploy:
+          name: Deploying to int
+          command: |
+            source version
+            echo $VERSION
+            git clone git@bitbucket.org:holonisproduct/holonis-common.git ~/holonis-common
+            cd ~/holonis-common/ && \
+            git checkout DO-163-MIGRATE && \
+            echo $ANSIBLE_VAULT_PASSWORD > ~/ansible_vault_password
+            cd ansible && \
+            ansible-playbook playbooks/deploy/prebid.yml \
+            -i environments/int \
+            --vault-id=~/ansible_vault_password \
+            --extra-vars="ecs_state=up service_workspace=~/repo ServiceName=prebid deploy_version=$VERSION" -v
+workflows:
+  version: 2
+  build_deploy:
+    jobs:
+      - build
+      - publish:
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
+      - int-deploy:
+          requires:
+            - publish
+          filters:
+            branches:
+              only: master
