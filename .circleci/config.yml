@@ -56,7 +56,7 @@ jobs:
             git checkout DO-163-MIGRATE && \
             echo $ANSIBLE_VAULT_PASSWORD > ~/ansible_vault_password
             cd ansible && \
-            ansible-playbook playbooks/deploy/publish.yml \
+            ansible-playbook playbooks/deploy/publish-prebid.yml \
             -i environments/int \
             --vault-id=~/ansible_vault_password \
             --extra-vars="ecs_state=up service_workspace=~/repo ServiceName=prebid deploy_version=$VERSION" -v
