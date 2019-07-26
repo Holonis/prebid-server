@@ -46,7 +46,7 @@ jobs:
             echo VERSION=1.0 > version
             cat version >> $BASH_ENV
 
-      - publish:
+      - deploy:
           name: Pushing version ${VERSION} to AWS ECR
           command: |
             source version
